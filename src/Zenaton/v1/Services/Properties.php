@@ -5,6 +5,9 @@ namespace Zenaton\Services;
 use ReflectionClass;
 use UnexpectedValueException;
 
+/**
+ * @internal
+ */
 class Properties
 {
     public function getNewInstanceWithoutProperties($name)

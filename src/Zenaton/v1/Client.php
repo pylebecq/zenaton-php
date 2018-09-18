@@ -85,6 +85,9 @@ class Client
         return $this;
     }
 
+    /**
+     * @internal Used by the MicroServer. Should not be called by user code.
+     */
     public function getWorkerUrl($ressources = '', $params = '')
     {
         $url = (getenv('ZENATON_WORKER_URL') ?: self::ZENATON_WORKER_URL)
@@ -95,6 +98,9 @@ class Client
         return $this->addAppEnv($url, $params);
     }
 
+    /**
+     * @internal Used by the MicroServer. Should not be called by user code.
+     */
     public function getWebsiteUrl($ressources = '', $params = '')
     {
         $url = (getenv('ZENATON_API_URL') ?: self::ZENATON_API_URL)
@@ -108,6 +114,8 @@ class Client
      * Start a workflow instance.
      *
      * @param WorkflowInterface $flow Workflow to start
+     *
+     * @internal Used by the Engine. Should not be called by user code.
      */
     public function startWorkflow(WorkflowInterface $flow)
     {
@@ -150,6 +158,8 @@ class Client
      *
      * @param string $workflowName Workflow class name
      * @param string $customId     Provided custom id
+     *
+     * @internal Used by the Query Builder. Should not be called by user code.
      */
     public function killWorkflow($workflowName, $customId)
     {
@@ -161,6 +171,8 @@ class Client
      *
      * @param string $workflowName Workflow class name
      * @param string $customId     Provided custom id
+     *
+     * @internal Used by the Query Builder. Should not be called by user code.
      */
     public function pauseWorkflow($workflowName, $customId)
     {
@@ -172,6 +184,8 @@ class Client
      *
      * @param string $workflowName Workflow class name
      * @param string $customId     Provided custom id
+     *
+     * @internal Used by the Query Builder. Should not be called by user code.
      */
     public function resumeWorkflow($workflowName, $customId)
     {
@@ -185,6 +199,8 @@ class Client
      * @param string $customId     Provided custom id
      *
      * @return WorkflowInterface
+     *
+     * @internal Used by the Query Builder. Should not be called by user code.
      */
     public function findWorkflow($workflowName, $customId)
     {
@@ -204,6 +220,8 @@ class Client
      * @param string         $workflowName Workflow class name
      * @param string         $customId     Provided custom id
      * @param EventInterface $event        Event to send
+     *
+     * @internal Used by the Query Builder. Should not be called by user code.
      */
     public function sendEvent($workflowName, $customId, EventInterface $event)
     {

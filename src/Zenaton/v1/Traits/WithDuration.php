@@ -5,6 +5,9 @@ namespace Zenaton\Traits;
 use Cake\Chronos\Chronos;
 use Zenaton\Exceptions\InternalZenatonException;
 
+/**
+ * @internal
+ */
 trait WithDuration
 {
     protected static $_timezone;

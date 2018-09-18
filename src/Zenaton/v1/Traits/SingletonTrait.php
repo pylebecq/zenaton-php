@@ -2,6 +2,9 @@
 
 namespace Zenaton\Traits;
 
+/**
+ * @internal
+ */
 trait SingletonTrait
 {
     protected static $instance = null;

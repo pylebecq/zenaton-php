@@ -2,6 +2,9 @@
 
 namespace Zenaton\Traits;
 
+/**
+ * @internal
+ */
 trait IsImplementationOfTrait
 {
     protected function isImplementationOf($name, $class)

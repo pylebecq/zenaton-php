@@ -7,6 +7,9 @@ use Closure;
 use SuperClosure\Serializer as ClosureSerializer;
 use UnexpectedValueException;
 
+/**
+ * @internal
+ */
 class Serializer
 {
     // this string prefixs ids that are used to identify objects and Closure

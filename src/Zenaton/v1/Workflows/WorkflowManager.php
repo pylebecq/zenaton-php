@@ -6,6 +6,9 @@ use Zenaton\Interfaces\WorkflowInterface;
 use Zenaton\Services\Properties;
 use Zenaton\Services\Serializer;
 
+/**
+ * @internal
+ */
 class WorkflowManager
 {
     protected $properties;

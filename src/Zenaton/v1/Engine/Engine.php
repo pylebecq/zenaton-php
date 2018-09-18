@@ -8,6 +8,9 @@ use Zenaton\Interfaces\TaskInterface;
 use Zenaton\Interfaces\WorkflowInterface;
 use Zenaton\Traits\SingletonTrait;
 
+/**
+ * @internal
+ */
 class Engine
 {
     use SingletonTrait;

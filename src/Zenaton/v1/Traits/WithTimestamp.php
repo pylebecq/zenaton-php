@@ -6,6 +6,9 @@ use Cake\Chronos\ChronosInterface;
 use Zenaton\Exceptions\ExternalZenatonException;
 use Zenaton\Exceptions\InternalZenatonException;
 
+/**
+ * @internal
+ */
 trait WithTimestamp
 {
     use WithDuration;
