@@ -39,13 +39,24 @@ final class SerializerTest extends TestCase
         yield [false, '{"d":false,"s":[]}'];
         yield [9000.123, '{"d":9000.123,"s":[]}'];
         // Simple array
-        yield [[1, 2, 3], '{"a":[1,2,3],"s":[]}'];
-        yield [[1, 'e'], '{"a":[1,"e"],"s":[]}'];
-        yield [['hello zenaton' => 'hello', 'are you okay?' => true], '{"a":{"hello zenaton":"hello","are you okay?":true},"s":[]}'];
-        yield [['hello zenaton' => 'hello', 'are you okay?' => true, 'mixing arrays !', 123], '{"a":{"hello zenaton":"hello","are you okay?":true,"0":"mixing arrays !","1":123},"s":[]}'];
+        yield [[1, 2, 3], '{"o":"@zenaton#0","s":[{"a":[1,2,3]}]}'];
+        yield [[1, 'e'], '{"o":"@zenaton#0","s":[{"a":[1,"e"]}]}'];
+        yield [['hello zenaton' => 'hello', 'are you okay?' => true], '{"o":"@zenaton#0","s":[{"a":{"hello zenaton":"hello","are you okay?":true}}]}'];
+        yield [['hello zenaton' => 'hello', 'are you okay?' => true, 'mixing arrays !', 123], '{"o":"@zenaton#0","s":[{"a":{"hello zenaton":"hello","are you okay?":true,"0":"mixing arrays !","1":123}}]}'];
         // Nested arrays
-        yield [[1, 2, 3, [4, 5, 6]], '{"a":[1,2,3,[4,5,6]],"s":[]}'];
-        yield [['hello', 2, true, [4, 5, [6, 7, 8], [9, 10, 11]]], '{"a":["hello",2,true,[4,5,[6,7,8],[9,10,11]]],"s":[]}'];
+        yield [[1, 2, 3, [4, 5, 6]], '{"o":"@zenaton#0","s":[{"a":[1,2,3,"@zenaton#1"]},{"a":[4,5,6]}]}'];
+        yield [['hello', 2, true, [4, 5, [6, 7, 8], [9, 10, 11]]], '{"o":"@zenaton#0","s":[{"a":["hello",2,true,"@zenaton#1"]},{"a":[4,5,"@zenaton#2","@zenaton#3"]},{"a":[6,7,8]},{"a":[9,10,11]}]}'];
+        $arr1 = [1, 2, 3];
+        $arr2 = [4, 5, 6];
+        $arr1[] = $arr2;
+        $arr2[] = $arr1;
+        yield [$arr1, '{"o":"@zenaton#0","s":[{"a":[1,2,3,"@zenaton#1"]},{"a":[4,5,6]}]}'];
+        // Arrays with references to each other
+        $arr1 = [1, 2, 3];
+        $arr2 = [4, 5, 6];
+        $arr1[] = &$arr2;
+        $arr2[] = &$arr1;
+        yield [$arr1, '{"o":"@zenaton#0","s":[{"a":[1,2,3,"@zenaton#1"]},{"a":[4,5,6,"@zenaton#0"]}]}'];
         // Closures
         // Here we rely on SuperClosure serialization to give us the expected result because depending on the versions of dependencies the results are not always the same
         $serializeClosure = function (\Closure $closure) {
@@ -58,21 +69,21 @@ final class SerializerTest extends TestCase
         };
         yield [
             $closure,
-            '{"c":"@zenaton#0","s":['.$serializeClosure($closure).']}',
+            '{"o":"@zenaton#0","s":[{"c":'.$serializeClosure($closure).'}]}',
         ];
         $closure = function ($punctuation) {
             return 'Zenaton'.$punctuation;
         };
         yield [
             $closure,
-            '{"c":"@zenaton#0","s":['.$serializeClosure($closure).']}',
+            '{"o":"@zenaton#0","s":[{"c":'.$serializeClosure($closure).'}]}',
         ];
         $closure = function ($punctuation) use ($closureStringContext) {
             return $closureStringContext.$punctuation;
         };
         yield [
             $closure,
-            '{"c":"@zenaton#0","s":['.$serializeClosure($closure).']}',
+            '{"o":"@zenaton#0","s":[{"c":'.$serializeClosure($closure).'}]}',
         ];
         // Array containing a closure
         $closure = function () {
@@ -80,13 +91,13 @@ final class SerializerTest extends TestCase
         };
         yield [
             [$closure],
-            '{"a":["@zenaton#0"],"s":['.$serializeClosure($closure).']}',
+            '{"o":"@zenaton#0","s":[{"a":["@zenaton#1"]},{"c":'.$serializeClosure($closure).'}]}',
         ];
         // Array containing the same closure twice
         $closure = function () {
             return 'Zenaton';
         };
-        yield [[$closure, $closure], '{"a":["@zenaton#0","@zenaton#0"],"s":['.$serializeClosure($closure).']}'];
+        yield [[$closure, $closure], '{"o":"@zenaton#0","s":[{"a":["@zenaton#1","@zenaton#1"]},{"c":'.$serializeClosure($closure).'}]}'];
         // Objects
         yield [new \DateTime('2018-09-05 11:33:00'), '{"o":"@zenaton#0","s":[{"n":"DateTime","p":{"date":"2018-09-05 11:33:00.000000","timezone_type":3,"timezone":"UTC"}}]}'];
         // Objects referencing other objects
@@ -142,6 +153,41 @@ final class SerializerTest extends TestCase
                             "name": "Zenaton",
                             "c2": "@zenaton#1"
                         }
+                    },
+                    {
+                        "n": "Zenaton\\\\Services\\\\C2",
+                        "p": {
+                            "count": 9000,
+                            "c3": "@zenaton#2"
+                        }
+                    },
+                    {
+                        "n": "Zenaton\\\\Services\\\\C3",
+                        "p": {
+                            "zenaton": true,
+                            "c2": "@zenaton#1"
+                        }
+                    }
+                ]
+            }
+            '),
+        ];
+        // Array containing objects with circular references between them
+        yield [
+            call_user_func(function () {
+                $c2 = new C2();
+                $c3 = new C3();
+                $c2->c3 = $c3;
+                $c3->c2 = $c2;
+
+                return [$c2, $c3];
+            }),
+            static::uglify('
+            {
+                "o": "@zenaton#0",
+                "s": [
+                    {
+                        "a": ["@zenaton#1", "@zenaton#2"]
                     },
                     {
                         "n": "Zenaton\\\\Services\\\\C2",
@@ -229,17 +275,27 @@ final class SerializerTest extends TestCase
         yield [$createAssertion(false), '{"d":false,"s":[]}'];
         yield [$createAssertion(9000.123), '{"d":9000.123,"s":[]}'];
 
-        // Simple array
+        // Simple array (old format)
         yield [$createAssertion([1, 2, 3]), '{"a":[1,2,3],"s":[]}'];
         yield [$createAssertion([1, 'e']), '{"a":[1,"e"],"s":[]}'];
         yield [$createAssertion(['hello zenaton' => 'hello', 'are you okay?' => true]), '{"a":{"hello zenaton":"hello","are you okay?":true},"s":[]}'];
         yield [$createAssertion(['hello zenaton' => 'hello', 'are you okay?' => true, 'mixing arrays !', 123]), '{"a":{"hello zenaton":"hello","are you okay?":true,"0":"mixing arrays !","1":123},"s":[]}'];
 
-        // Nested arrays
+        // Simple array
+        yield [$createAssertion([1, 2, 3]), '{"o":"@zenaton#0","s":[{"a":[1,2,3]}]}'];
+        yield [$createAssertion([1, 'e']), '{"o":"@zenaton#0","s":[{"a":[1,"e"]}]}'];
+        yield [$createAssertion(['hello zenaton' => 'hello', 'are you okay?' => true]), '{"o":"@zenaton#0","s":[{"a":{"hello zenaton":"hello","are you okay?":true}}]}'];
+        yield [$createAssertion(['hello zenaton' => 'hello', 'are you okay?' => true, 'mixing arrays !', 123]), '{"o":"@zenaton#0","s":[{"a":{"hello zenaton":"hello","are you okay?":true,"0":"mixing arrays !","1":123}}]}'];
+
+        // Nested arrays (old format)
         yield [$createAssertion([1, 2, 3, [4, 5, 6]]), '{"a":[1,2,3,[4,5,6]],"s":[]}'];
         yield [$createAssertion(['hello', 2, true, [4, 5, [6, 7, 8], [9, 10, 11]]]), '{"a":["hello",2,true,[4,5,[6,7,8],[9,10,11]]],"s":[]}'];
 
-        // Closures
+        // Nested arrays
+        yield [$createAssertion([1, 2, 3, [4, 5, 6]]), '{"o":"@zenaton#0","s":[{"a":[1,2,3,"@zenaton#1"]},{"a":[4,5,6]}]}'];
+        yield [$createAssertion(['hello', 2, true, [4, 5, [6, 7, 8], [9, 10, 11]]]), '{"o":"@zenaton#0","s":[{"a":["hello",2,true,"@zenaton#1"]},{"a":[4,5,"@zenaton#2","@zenaton#3"]},{"a":[6,7,8]},{"a":[9,10,11]}]}'];
+
+        // Closures (old format)
         $createAssertion = function () {
             return function ($actual) {
                 static::assertInstanceOf(\Closure::class, $actual);
@@ -270,7 +326,33 @@ final class SerializerTest extends TestCase
             '{"c":"@zenaton#0","s":["C:32:\"SuperClosure\\\\SerializableClosure\":278:{a:5:{s:4:\"code\";s:104:\"function ($punctuation) use($closureStringContext) {\n    return $closureStringContext . $punctuation;\n};\";s:7:\"context\";a:1:{s:20:\"closureStringContext\";s:7:\"Zenaton\";}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"]}',
         ];
 
-        // Array containing the same closure twice
+        // Closures
+        yield [
+            $createAssertion(),
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":168:{a:5:{s:4:\"code\";s:37:\"function () {\n    return \'Zenaton\';\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+        yield [
+            $createAssertion(),
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":169:{a:5:{s:4:\"code\";s:38:\"function () {\n    return \'Zenaton\';\n};\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+        yield [
+            $createAssertion(),
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":195:{a:5:{s:4:\"code\";s:64:\"function ($punctuation) {\n    return \'Zenaton\' . $punctuation;\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+        yield [
+            $createAssertion(),
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":196:{a:5:{s:4:\"code\";s:65:\"function ($punctuation) {\n    return \'Zenaton\' . $punctuation;\n};\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+        yield [
+            $createAssertion(),
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":277:{a:5:{s:4:\"code\";s:103:\"function ($punctuation) use($closureStringContext) {\n    return $closureStringContext . $punctuation;\n}\";s:7:\"context\";a:1:{s:20:\"closureStringContext\";s:7:\"Zenaton\";}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+        yield [
+            $createAssertion,
+            '{"o":"@zenaton#0","s":[{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":278:{a:5:{s:4:\"code\";s:104:\"function ($punctuation) use($closureStringContext) {\n    return $closureStringContext . $punctuation;\n};\";s:7:\"context\";a:1:{s:20:\"closureStringContext\";s:7:\"Zenaton\";}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
+        ];
+
+        // Array (old format) containing the same closure (old format) twice
         yield [
             function ($actual) {
                 static::assertTrue(is_array($actual));
@@ -280,6 +362,18 @@ final class SerializerTest extends TestCase
                 static::assertSame($actual[0], $actual[1]);
             },
             '{"a":["@zenaton#0","@zenaton#0"],"s":["C:32:\"SuperClosure\\\\SerializableClosure\":168:{a:5:{s:4:\"code\";s:37:\"function () {\n    return \'Zenaton\';\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"]}',
+        ];
+
+        // Array containing the same closure twice
+        yield [
+            function ($actual) {
+                static::assertTrue(is_array($actual));
+                static::assertCount(2, $actual);
+                static::assertInstanceOf(\Closure::class, $actual[0]);
+                static::assertInstanceOf(\Closure::class, $actual[1]);
+                static::assertSame($actual[0], $actual[1]);
+            },
+            '{"o":"@zenaton#0","s":[{"a":["@zenaton#1","@zenaton#1"]},{"c":"C:32:\"SuperClosure\\\\SerializableClosure\":168:{a:5:{s:4:\"code\";s:37:\"function () {\n    return \'Zenaton\';\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"}]}',
         ];
 
         // Objects
@@ -360,6 +454,56 @@ final class SerializerTest extends TestCase
             }
             ',
         ];
+
+        // Objects referencing closures (old format)
+        yield [
+            function ($actual) {
+                static::assertInstanceOf(C1::class, $actual);
+                static::assertAttributeSame('Zenaton', 'name', $actual);
+                static::assertAttributeInstanceOf(\Closure::class, 'c2', $actual);
+            },
+            '
+            {
+                "o": "@zenaton#0",
+                "s": [
+                    {
+                        "n": "Zenaton\\\\Services\\\\C1",
+                        "p": {
+                            "name": "Zenaton",
+                            "c2": "@zenaton#1"
+                        }
+                    },
+                    "C:32:\"SuperClosure\\\\SerializableClosure\":168:{a:5:{s:4:\"code\";s:37:\"function () {\n    return \'Zenaton\';\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"
+                ]
+            }
+            ',
+        ];
+
+        // Objects referencing closures
+        yield [
+            function ($actual) {
+                static::assertInstanceOf(C1::class, $actual);
+                static::assertAttributeSame('Zenaton', 'name', $actual);
+                static::assertAttributeInstanceOf(\Closure::class, 'c2', $actual);
+            },
+            '
+            {
+                "o": "@zenaton#0",
+                "s": [
+                    {
+                        "n": "Zenaton\\\\Services\\\\C1",
+                        "p": {
+                            "name": "Zenaton",
+                            "c2": "@zenaton#1"
+                        }
+                    },
+                    {
+                        "c": "C:32:\"SuperClosure\\\\SerializableClosure\":168:{a:5:{s:4:\"code\";s:37:\"function () {\n    return \'Zenaton\';\n}\";s:7:\"context\";a:0:{}s:7:\"binding\";N;s:5:\"scope\";s:31:\"Zenaton\\\\Services\\\\SerializerTest\";s:8:\"isStatic\";b:0;}}"
+                    }
+                ]
+            }
+            ',
+        ];
     }
 
     public function testDecodeStringContainingWrongKeyThrowsAnException()
@@ -375,8 +519,6 @@ final class SerializerTest extends TestCase
 
         $this->serializer->decode('{"z":"","s":[]');
     }
-
-    //public function testDecodedClosuresReturnsCorrectResult($closure, $expectedResult)
 
     private static function uglify($string)
     {
